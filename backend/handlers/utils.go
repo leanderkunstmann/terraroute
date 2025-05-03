@@ -63,11 +63,13 @@ func InitDB(ctx context.Context, lcl string) (*bun.DB, error) {
 			{IATA: "JFK", Name: "John F. Kennedy International Airport", City: "New York", Country: "USA", Continent: "North America", Latitude: 40.6413, Longitude: -73.7781},
 			{IATA: "LAX", Name: "Los Angeles International Airport", City: "Los Angeles", Country: "USA", Continent: "North America", Latitude: 33.9416, Longitude: -118.4085},
 			{IATA: "CDG", Name: "Charles de Gaulle Airport", City: "Paris", Country: "France", Continent: "Europe", Latitude: 49.0097, Longitude: 2.5479},
+			{IATA: "FRA", Name: "Frankfurt Airport", City: "Frankfurt", Country: "Germany", Continent: "Europe", Latitude: 50.0333, Longitude: 8.5706},
 		}
 		aircrafts := []models.Aircraft{
 			{Id: 1, Type: models.Commercial, Name: "Boeing 737", Manufacturer: "Boeing", Range: 3510},
 			{Id: 2, Type: models.Heavy, Name: "Gulfstream G650", Manufacturer: "Gulfstream", Range: 7500},
 			{Id: 3, Type: models.Cargo, Name: "Antonov An-225", Manufacturer: "Antonov", Range: 9700},
+			{Id: 4, Type: models.Commercial, Name: "Airbus A320", Manufacturer: "Airbus", Range: 3200},
 		}
 		flights := []models.Flight{
 			{FlightNumber: "AA100", AircraftId: 1, Origin: "JFK", Destination: "LAX", DepartureTime: "2023-10-01T08:00:00Z", ArrivalTime: "2023-10-01T11:00:00Z"},

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+
 func TestCalculateDistance(t *testing.T) {
 	ctx := context.Background()
 	db, err := InitDB(ctx, "true")
@@ -28,16 +29,31 @@ func TestCalculateDistance(t *testing.T) {
 		name           string
 		requestBody    models.DistanceRequest
 		expectedStatus int
-		expectedBody   map[string]float64
+		expectedBody   models.DistanceData
 	}{
 		{
 			name:           "Valid request",
-			requestBody:    models.DistanceRequest{Origin: "JFK", Destination: "LAX"},
+			requestBody:    models.DistanceRequest{Departure: "JFK", Destination: "LAX"},
 			expectedStatus: http.StatusOK,
-			expectedBody: map[string]float64{
-				"km":    3974,
-				"miles": 2470,
-				"nm":    2145,
+			expectedBody: models.DistanceData{
+				Route: models.DistanceRequest{
+					Departure: "JFK",
+					Destination: "LAX",
+					Borders: []string{},
+				},
+				Distances: map[string]float64{
+					"km":    3974,
+					"miles": 2470,
+					"nm":    2145,
+				},
+				Path: []models.PointCoords{
+					{Lat: 40.6413, Lng: -73.7781},
+					{Lat: 33.9416, Lng: -118.4085},
+				},
+				Midpoint: models.PointCoords{
+					Lat: 37.29145,
+					Lng: -96.0933,
+				},
 			},
 		},
 		{
@@ -46,13 +62,13 @@ func TestCalculateDistance(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			name:           "Origin airport not found",
-			requestBody:    models.DistanceRequest{Origin: "XXX", Destination: "LAX"},
+			name:           "Departure airport not found",
+			requestBody:    models.DistanceRequest{Departure: "XXX", Destination: "LAX"},
 			expectedStatus: http.StatusNotFound,
 		},
 		{
 			name:           "Destination airport not found",
-			requestBody:    models.DistanceRequest{Origin: "JFK", Destination: "XXX"},
+			requestBody:    models.DistanceRequest{Departure: "JFK", Destination: "XXX"},
 			expectedStatus: http.StatusNotFound,
 		},
 	}
@@ -67,9 +83,11 @@ func TestCalculateDistance(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, rr.Code)
 
 			if tt.expectedStatus == http.StatusOK {
-				var response map[string]float64
+				var response models.DistanceData
 				json.NewDecoder(rr.Body).Decode(&response)
-				assert.InDeltaMapValues(t, tt.expectedBody, response, 1)
+				assert.InDeltaMapValues(t, tt.expectedBody.Distances, response.Distances, 1)
+				assert.InDelta(t, tt.expectedBody.Midpoint.Lat, response.Midpoint.Lat, 1)
+				assert.InDelta(t, tt.expectedBody.Midpoint.Lng, response.Midpoint.Lng, 1)
 			}
 		})
 	}

@@ -1,3 +1,5 @@
 terraroute
 terraroute.db
 .env
+playground.go
+*.exe

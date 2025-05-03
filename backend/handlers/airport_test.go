@@ -24,7 +24,6 @@ func TestGetAirports(t *testing.T) {
 
 	handler := GetAirports(db)
 
-	// TODO: use url package to build the path
 	path := "/airports"
 
 	// Test case 1: No filters
@@ -35,7 +34,7 @@ func TestGetAirports(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var airports []models.Airport
 	json.Unmarshal(rr.Body.Bytes(), &airports)
-	assert.Equal(t, 3, len(airports)) // Check if all airports are returned
+	assert.Equal(t, 4, len(airports)) // Check if all airports are returned
 
 	// Test case 2: Filter by country
 	req, _ = http.NewRequest("GET", fmt.Sprintf("%s?country=USA", path), nil)
@@ -47,6 +46,16 @@ func TestGetAirports(t *testing.T) {
 	assert.Equal(t, 2, len(airports)) // Check if correct number of airports are returned
 
 	// Test case 3: Filter by iata
+	req, _ = http.NewRequest("GET", fmt.Sprintf("%s?iata=JFK", path), nil)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	json.Unmarshal(rr.Body.Bytes(), &airports)
+	assert.Equal(t, 1, len(airports))
+	assert.Equal(t, "JFK", airports[0].IATA)
+
+	// Test case 4: Filter by continent
 	req, _ = http.NewRequest("GET", fmt.Sprintf("%s?iata=JFK", path), nil)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)

@@ -11,7 +11,24 @@ import (
 func GetAircraft(db *bun.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var aircrafts []models.Aircraft
-		if err := db.NewSelect().Model(&aircrafts).Scan(r.Context()); err != nil {
+
+		// Get query parameters
+
+		manufacturer := r.URL.Query().Get("manufacturer")
+		aircraftType := r.URL.Query().Get("aircraftType")
+
+		// Build the query with optional filters
+
+		query := db.NewSelect().Model(&aircrafts)
+		if manufacturer != "" {
+			query.Where("manufacturer = ?", manufacturer)
+		}
+		if aircraftType != "" {
+			query.Where("type = ?", aircraftType)
+		}
+
+		// Execute the query
+		if err := query.Scan(r.Context()); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
