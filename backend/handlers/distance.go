@@ -13,7 +13,6 @@ type DistanceCalculator struct {
 	DB *bun.DB
 }
 
-
 func NewDistanceCalculator(db *bun.DB) *DistanceCalculator {
 	return &DistanceCalculator{DB: db}
 }
@@ -61,10 +60,10 @@ func (dc *DistanceCalculator) calculateMidPoint(coords []models.PointCoords) mod
 
 func (dc *DistanceCalculator) calculateDirectDistance(departure, destination models.PointCoords) map[string]float64 {
 	// Convert latitude and longitude to radians
-	lat1Rad := departure.Lat* math.Pi / 180
+	lat1Rad := departure.Lat * math.Pi / 180
 	lon1Rad := departure.Lng * math.Pi / 180
 	lat2Rad := destination.Lat * math.Pi / 180
-	lon2Rad := destination.Lng* math.Pi / 180
+	lon2Rad := destination.Lng * math.Pi / 180
 
 	// Haversine formula
 	dlat := lat2Rad - lat1Rad
@@ -75,7 +74,7 @@ func (dc *DistanceCalculator) calculateDirectDistance(departure, destination mod
 	return calculateDistanceValues(c)
 }
 
-func (dc *DistanceCalculator) calculateAdjustedDistance(departure, destination models.PointCoords, borders []string) (map[string]float64, []models.PointCoords){
+func (dc *DistanceCalculator) calculateAdjustedDistance(departure, destination models.PointCoords, borders []string) (map[string]float64, []models.PointCoords) {
 	// This should take into account the borders and calculate the optimal distance avoiding those borders
 
 	// For now, let's return the direct distance as a placeholder
@@ -123,18 +122,18 @@ func (dc *DistanceCalculator) CalculateDistance(w http.ResponseWriter, r *http.R
 	}
 
 	var distances map[string]float64
-	var res models.DistanceData 
+	var res models.DistanceData
 	var path []models.PointCoords
 
 	if len(req.Borders) != 0 {
 		var path []models.PointCoords
-		distances, path = dc.calculateAdjustedDistance(models.PointCoords{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude},models.PointCoords{Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude} , req.Borders)
+		distances, path = dc.calculateAdjustedDistance(models.PointCoords{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, models.PointCoords{Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude}, req.Borders)
 		res = models.DistanceData{Route: req, Distances: distances, Path: path, Midpoint: dc.calculateMidPoint(path)}
-		
+
 	} else {
-		distances = dc.calculateDirectDistance(models.PointCoords{Lat: departureAirport.Latitude, Lng:departureAirport.Longitude}, models.PointCoords{Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude})
+		distances = dc.calculateDirectDistance(models.PointCoords{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, models.PointCoords{Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude})
 		path = []models.PointCoords{{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, {Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude}}
-		res = models.DistanceData{Route: req ,Distances: distances, Path: path, Midpoint: dc.calculateMidPoint(path)}
+		res = models.DistanceData{Route: req, Distances: distances, Path: path, Midpoint: dc.calculateMidPoint(path)}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(res)

@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestCalculateDistance(t *testing.T) {
 	ctx := context.Background()
 	db, err := InitDB(ctx, "true")
@@ -37,9 +36,9 @@ func TestCalculateDistance(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			expectedBody: models.DistanceData{
 				Route: models.DistanceRequest{
-					Departure: "JFK",
+					Departure:   "JFK",
 					Destination: "LAX",
-					Borders: []string{},
+					Borders:     []string{},
 				},
 				Distances: map[string]float64{
 					"km":    3974,

@@ -67,6 +67,4 @@ func TestAircraft(t *testing.T) {
 	assert.Equal(t, 1, len(aircrafts))
 	assert.Equal(t, models.Manufacturer("Airbus"), aircrafts[0].Manufacturer)
 
-
-
 }

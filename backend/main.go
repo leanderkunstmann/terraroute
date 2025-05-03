@@ -13,8 +13,8 @@ import (
 )
 
 func serveRoute(router *mux.Router, api_version string, path string, method string, f func(http.ResponseWriter, *http.Request)) *mux.Route {
-	router.HandleFunc("/api" + api_version + path, f).Methods("OPTIONS")
-	return router.HandleFunc("/api" + api_version + path, f).Methods(method)
+	router.HandleFunc("/api"+api_version+path, f).Methods("OPTIONS")
+	return router.HandleFunc("/api"+api_version+path, f).Methods(method)
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -34,7 +34,6 @@ func corsMiddleware(next http.Handler) http.Handler {
 			}
 		}
 		w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
-
 
 		// Handle preflight OPTIONS request
 		if r.Method == "OPTIONS" {
@@ -66,11 +65,9 @@ func main() {
 
 	distanceCalculator := handlers.NewDistanceCalculator(db)
 
-
 	r := mux.NewRouter()
 
 	r.Use(corsMiddleware)
-
 
 	//v1
 	serveRoute(r, "/v1", "/airports", "GET", handlers.GetAirports(db))

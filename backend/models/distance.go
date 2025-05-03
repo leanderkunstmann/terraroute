@@ -13,10 +13,9 @@ type PointCoords struct {
 	Lng float64 `json:"lng"`
 }
 
-
 type DistanceData struct {
-	Route DistanceRequest `json:"route"`
+	Route     DistanceRequest    `json:"route"`
 	Distances map[string]float64 `json:"distances"`
-	Path []PointCoords `json:"path"`
-	Midpoint PointCoords `json:"midpoint"`
+	Path      []PointCoords      `json:"path"`
+	Midpoint  PointCoords        `json:"midpoint"`
 }
