@@ -22,8 +22,6 @@ import MenuIcon from '@mui/icons-material/Menu'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
-
-import './app.css'
 import IconButton from '@mui/material/IconButton'
 
 const drawerWidth = 240
