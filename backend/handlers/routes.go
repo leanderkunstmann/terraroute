@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const basePathV1 = "/api/v1"
+const basePathV1 string = "/api/v1"
 
 type Handler interface {
 	Register(r *mux.Router)

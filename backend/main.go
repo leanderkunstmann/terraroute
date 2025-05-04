@@ -14,11 +14,13 @@ import (
 	"github.com/leanderkunstmann/terraroute/backend/database"
 	"github.com/leanderkunstmann/terraroute/backend/handlers"
 	"github.com/leanderkunstmann/terraroute/backend/services"
+	"github.com/rs/cors"
 )
 
 type Config struct {
-	Database   database.Config `mapstructure:"database"`
-	ListenAddr string          `mapstructure:"listen_addr"`
+	Database    database.Config `mapstructure:"database"`
+	AllowedCors []string        `mapstructure:"allowed_cors"`
+	ListenAddr  string          `mapstructure:"listen_addr"`
 }
 
 type svcs struct {
@@ -30,6 +32,7 @@ type svcs struct {
 const (
 	listenAddr        = ":8080"
 	readHeaderTimeout = 5 * time.Second
+	defaultCORSOrigin = "http://localhost:5173"
 )
 
 func main() {
@@ -39,10 +42,21 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	allowedCORSConfig := os.Getenv("ALLOWED_CORS")
+	var allowedOrigins []string = []string{defaultCORSOrigin}
+
+	if allowedCORSConfig != "" {
+		allowedOrigins = strings.Split(allowedCORSConfig, ",")
+		log.Printf("Allowed CORS origins read from environment variable: %v", allowedOrigins)
+	} else {
+		log.Printf("Allowed CORS origins set to default: %v", allowedOrigins)
+	}
+
 	// TODO: read config via viper from both .env and config file
 	// optionally use viper with cobra to also read from CLI args
 	cfg := Config{
-		ListenAddr: listenAddr,
+		ListenAddr:  listenAddr,
+		AllowedCors: allowedOrigins,
 		Database: database.Config{
 			LocalDB:  strings.EqualFold(os.Getenv("LOCAL_DB"), "true"),
 			Username: os.Getenv("DB_USER"),
@@ -70,16 +84,27 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.Use(mux.CORSMethodMiddleware(r))
+
 	for _, handler := range handlers {
 		handler.Register(r)
 	}
+
+	// Configure CORS
+	corsOptions := cors.New(cors.Options{
+		AllowedOrigins: cfg.AllowedCors,                           // Replace with your allowed origin
+		AllowedMethods: []string{"GET", "POST", "OPTIONS"},        // Add methods you need
+		AllowedHeaders: []string{"Content-Type", "Authorization"}, // Add headers you need
+		// AllowCredentials: true, // Set to true if you need to handle credentials (cookies, auth headers)
+	})
+
+	// Wrap your router with the CORS handler
+	handler := corsOptions.Handler(r)
 
 	// Use a custom [http.Server] to set a read header timeout
 	// to prevent slowloris attacks.
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
-		Handler:           r,
+		Handler:           handler,
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
