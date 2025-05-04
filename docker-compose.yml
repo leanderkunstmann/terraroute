@@ -22,10 +22,10 @@ services:
     - "8080:8080"
     restart: always
     environment: 
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: terraroute-db
-      POSTGRES_PORT: 5432
+      TERRAROUTE_DATABASE_PASSWORD: postgres
+      TERRAROUTE_DATABASE_USERNAME: postgres
+      TERRAROUTE_DATABASE_NAME: terraroute-db
+      TERRAROUTE_DATABASE_PORT: 5432
     depends_on:
       - db
 
