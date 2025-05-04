@@ -66,6 +66,10 @@ func Load(path string) (*Config, error) {
 	}
 
 	c := cfg.withDefaults()
+	if err := config.Validate(c); err != nil {
+		return nil, fmt.Errorf("failed to validate configuration: %w", err)
+	}
+
 	fmt.Printf("Used Config: %+v\n", c.redacted())
 	return c, nil
 }
