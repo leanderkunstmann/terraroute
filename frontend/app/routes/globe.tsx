@@ -241,7 +241,9 @@ export default function Routes() {
               ? 3
               : route.distances.km > 3000
               ? 2
-              : 1.25,
+              : route.distances.km > 3000
+              ? 1.25
+              : 0.75,
           radius: 0.5,
           dot: true,
           color: 'white',
@@ -256,7 +258,9 @@ export default function Routes() {
               ? 3
               : route.distances.km > 3000
               ? 2
-              : 1.25,
+              : route.distances.km > 3000
+              ? 1.25
+              : 0.75,
           radius: 0.5,
           dot: true,
           color: 'white',
@@ -264,7 +268,9 @@ export default function Routes() {
         },
         {
           lat:
-            route.midpoint.lat > 55
+            route.distances.km < 1000
+              ? route.midpoint.lat + 3
+              : route.midpoint.lat > 55
               ? 55
               : route.midpoint.lat < -64
               ? -64
@@ -285,7 +291,9 @@ export default function Routes() {
               ? 3
               : route.distances.km > 3000
               ? 2
-              : 1.25,
+              : route.distances.km > 3000
+              ? 1.25
+              : 0.75,
           radius: 0.5,
           dot: false,
           color:
