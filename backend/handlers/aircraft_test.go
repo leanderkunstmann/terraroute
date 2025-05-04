@@ -8,13 +8,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/leanderkunstmann/terraroute/backend/database"
 	"github.com/leanderkunstmann/terraroute/backend/models"
+	"github.com/leanderkunstmann/terraroute/backend/services"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAircraft(t *testing.T) {
 	ctx := context.Background()
-	db, err := InitDB(ctx, "true")
+	db, err := database.New(ctx, &database.Config{LocalDB: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,14 +24,15 @@ func TestAircraft(t *testing.T) {
 		db.Close()
 	}()
 
-	handler := GetAircraft(db)
+	service := services.NewAircraftService(db)
+	handler := NewAircraftHandler(service)
 
-	path := "/aircrafts"
+	const path = "/aircrafts"
 
 	// Test case 1: No filters
 	req, _ := http.NewRequest("GET", path, nil)
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	handler.GetAircraft(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var aircrafts []models.Aircraft
@@ -39,7 +42,7 @@ func TestAircraft(t *testing.T) {
 	// Test case 2: Filter by manufacturer
 	req, _ = http.NewRequest("GET", fmt.Sprintf("%s?manufacturer=Boeing", path), nil)
 	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	handler.GetAircraft(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	json.Unmarshal(rr.Body.Bytes(), &aircrafts)
@@ -49,7 +52,7 @@ func TestAircraft(t *testing.T) {
 	// Test case 3: Filter by aircraftType
 	req, _ = http.NewRequest("GET", fmt.Sprintf("%s?aircraftType=commercial", path), nil)
 	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	handler.GetAircraft(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	json.Unmarshal(rr.Body.Bytes(), &aircrafts)
@@ -60,7 +63,7 @@ func TestAircraft(t *testing.T) {
 	// Test case 4: Filter by aircraftType and manufacturer
 	req, _ = http.NewRequest("GET", fmt.Sprintf("%s?manufacturer=Airbus&aircraftType=commercial", path), nil)
 	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	handler.GetAircraft(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	json.Unmarshal(rr.Body.Bytes(), &aircrafts)
