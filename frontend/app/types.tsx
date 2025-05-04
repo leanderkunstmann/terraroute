@@ -18,17 +18,24 @@ export interface DistanceRequest {
 }
 
 // Represents geographical coordinates.
-export interface PointCoords {
+export interface Coordinate {
   lat: number // Latitude coordinate.
   lng: number // Longitude coordinate.
+}
+
+export interface Country {
+  code: string
+  name: string
+  continent: string
+  borders?: Coordinate[][]
 }
 
 // Represents the data returned after calculating distances and routes.
 export interface DistanceData {
   route: DistanceRequest // The original route request details.
   distances: Record<string, number> // A map of distances, keyed by some identifier (e.g., border name).
-  path: PointCoords[] // An array of coordinates representing the calculated path.
-  midpoint: PointCoords // The calculated midpoint of the route.
+  path: Coordinate[] // An array of coordinates representing the calculated path.
+  midpoint: Coordinate // The calculated midpoint of the route.
 }
 
 export interface GeoLabel {
@@ -45,6 +52,16 @@ export interface GeoLabel {
 export interface GeoPath {
   coords: number[][]
   properties: GeoPathProperties
+}
+
+export interface GeoArc {
+  startLat: number
+  startLng: number
+  endLat: number
+  endLng: number
+  label: string
+  color: string | string[]
+  alt: number
 }
 
 export interface GeoPathProperties {

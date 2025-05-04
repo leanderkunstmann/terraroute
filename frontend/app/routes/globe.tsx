@@ -8,7 +8,15 @@ import TextField from '@mui/material/TextField'
 import Autocomplete from '@mui/material/Autocomplete'
 import axios from 'axios'
 
-import type { Airport, DistanceData, GeoLabel, GeoPath } from '~/types'
+import type {
+  Airport,
+  Country,
+  DistanceData,
+  GeoLabel,
+  GeoPath,
+  GeoArc,
+} from '~/types'
+import { colors } from '~/constants'
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -24,6 +32,7 @@ export default function Routes() {
   const globeEl = useRef<GlobeMethods | undefined>(undefined)
 
   const [airports, setAirports] = useState<Airport[]>([])
+  const [countries, setCountries] = useState<Country[]>([])
   const [route, setRoute] = useState<DistanceData | null>(null)
 
   const [departureAirport, setDepartureAirport] = useState<Airport | null>(null)
@@ -31,8 +40,11 @@ export default function Routes() {
     null
   )
 
+  const [countriesToExclude, setCountriesToExclude] = useState<Country[]>([])
+
   // State to hold data for the paths (lines) drawn on the globe
   const [pathsData, setPathsData] = useState<GeoPath[]>([])
+  const [arcsData, setArcsData] = useState<GeoArc[]>([])
   // State to hold data for the labels displayed on the globe
   const [labelsData, setLabelsData] = useState<GeoLabel[]>([])
 
@@ -53,6 +65,12 @@ export default function Routes() {
       setAirports(res.data)
     }
     getAirports()
+
+    const getCountries = async () => {
+      const res = await axios.get('http://192.168.0.178:8080/api/v1/countries')
+      setCountries(res.data)
+    }
+    getCountries()
 
     window.addEventListener('resize', handleResize)
     return () => {
@@ -76,36 +94,44 @@ export default function Routes() {
     }
   }, [width])
 
-  // Create the base options list once, including the original airport data
-  // Use useMemo if airports list is large or changes frequently, otherwise a simple map outside component is fine
+  const countryOptions = useMemo(() => {
+    return countries.map((country) => ({
+      ...country,
+      label: country.name,
+    }))
+  }, [countries]) // Re-run if the original airports list changes
+
   const baseAirportOptions = useMemo(() => {
     return airports.map((airport) => ({
-      // Keep the original airport data in the option object
       ...airport,
-      // Create the label format you want to display
-      label: airport.iata + ' | ' + airport.name,
+      label:
+        airport.iata +
+        ' | ' +
+        airport.name +
+        (airport.name.toLowerCase().includes(airport.city.toLowerCase())
+          ? ''
+          : ' ' + airport.city),
     }))
   }, [airports]) // Re-run if the original airports list changes
 
   // Filter options for Departure: exclude the selected Destination airport
   const departureOptions = useMemo(() => {
     if (!destinationAirport) {
-      return baseAirportOptions // If no destination is selected, all airports are available for departure
+      return baseAirportOptions.sort((a, b) => (a.iata < b.iata ? -1 : 1))
     }
-    return baseAirportOptions.filter(
-      (option) => option.iata !== destinationAirport.iata // Compare using a unique identifier like IATA
-    )
-  }, [baseAirportOptions, destinationAirport]) // Re-run if base options or destination changes
+    return baseAirportOptions
+      .filter((option) => option.iata !== destinationAirport.iata)
+      .sort((a, b) => (a.iata < b.iata ? -1 : 1))
+  }, [baseAirportOptions, destinationAirport])
 
-  // Filter options for Destination: exclude the selected Departure airport
   const destinationOptions = useMemo(() => {
     if (!departureAirport) {
-      return baseAirportOptions // If no departure is selected, all airports are available for destination
+      return baseAirportOptions.sort((a, b) => (a.iata < b.iata ? -1 : 1))
     }
-    return baseAirportOptions.filter(
-      (option) => option.iata !== departureAirport.iata // Compare using a unique identifier like IATA
-    )
-  }, [baseAirportOptions, departureAirport]) // Re-run if base options or departure changes
+    return baseAirportOptions
+      .filter((option) => option.iata !== departureAirport.iata)
+      .sort((a, b) => (a.iata < b.iata ? -1 : 1))
+  }, [baseAirportOptions, departureAirport])
 
   useMemo(async () => {
     if (departureAirport && destinationAirport) {
@@ -154,21 +180,48 @@ export default function Routes() {
       destinationAirport
     ) {
       const paths = []
-
       const pathPoints = []
-      for (let r of route.path) {
-        pathPoints.push([r.lat, r.lng])
+      const arcs: GeoArc[] = []
+
+      const depAirport: Airport | undefined = airports.find(
+        (airport) => airport.iata === route.route.departure
+      )
+      const desAirport: Airport | undefined = airports.find(
+        (airport) => airport.iata === route.route.destination
+      )
+      let textLabel = ''
+      if (depAirport && desAirport) {
+        textLabel = `from (${depAirport.iata}) ${depAirport.city} in ${depAirport.country} to (${desAirport.iata}) ${desAirport.city} in ${desAirport.country}`
+      } else {
+        textLabel = route.route.departure + ' --> ' + route.route.destination
       }
 
-      const colors: string[][] = [
-        ['rgba(0,0,255,1)', 'rgba(255,0,0,1)'],
-        ['rgb(113, 126, 0)', 'rgba(255,0,0,1)'],
-        ['rgba(255,0,255,1)', 'rgba(0,255,0,1)'],
-      ]
+      let colorNum = Math.floor(Math.random() * colors.length)
+
+      for (let i = 0; i < route.path.length; i++) {
+        pathPoints.push([route.path[i].lat, route.path[i].lng])
+        if (i < route.path.length - 1) {
+          const arc: GeoArc = {
+            startLat: route.path[i].lat,
+            startLng: route.path[i].lng,
+            endLat: route.path[i + 1].lat,
+            endLng: route.path[i + 1].lng,
+            label: textLabel,
+            color: colors[colorNum],
+            alt: 0,
+          }
+          colorNum === colors.length - 1 ? (colorNum = 0) : colorNum++
+          arcs.push(arc)
+        }
+      }
+
+      setArcsData(arcs)
+      console.log(arcsData)
+
       paths.push({
         coords: pathPoints,
         properties: {
-          label: route.route.departure + '-->' + route.route.destination,
+          label: textLabel,
           color: colors[Math.floor(Math.random() * colors.length)],
         },
       })
@@ -183,7 +236,12 @@ export default function Routes() {
           lat: route.path[0].lat,
           lng: route.path[0].lng,
           text: `${route.route.departure}`,
-          size: route.distances.km > 3000 ? 3 : 1,
+          size:
+            route.distances.km > 5000
+              ? 3
+              : route.distances.km > 3000
+              ? 2
+              : 1.25,
           radius: 0.5,
           dot: true,
           color: 'white',
@@ -193,7 +251,12 @@ export default function Routes() {
           lat: route.path[route.path.length - 1].lat,
           lng: route.path[route.path.length - 1].lng,
           text: `${route.route.destination}`,
-          size: route.distances.km > 3000 ? 3 : 1,
+          size:
+            route.distances.km > 5000
+              ? 3
+              : route.distances.km > 3000
+              ? 2
+              : 1.25,
           radius: 0.5,
           dot: true,
           color: 'white',
@@ -201,9 +264,11 @@ export default function Routes() {
         },
         {
           lat:
-            route.midpoint.lat < 85
-              ? route.midpoint.lat + 5
-              : route.midpoint.lat - 5,
+            route.midpoint.lat > 55
+              ? 55
+              : route.midpoint.lat < -64
+              ? -64
+              : route.midpoint.lat,
           lng: route.midpoint.lng,
           text:
             route.distances.km > 3000
@@ -215,11 +280,24 @@ export default function Routes() {
               : `${route.distances.km.toFixed(
                   0
                 )} km / ${route.distances.nm.toFixed(0)} NM`,
-          size: 1.8,
+          size:
+            route.distances.km > 5000
+              ? 3
+              : route.distances.km > 3000
+              ? 2
+              : 1.25,
           radius: 0.5,
           dot: false,
-          color: '#F0F8FF',
-          alt: route.distances.km > 3000 ? 0 : 0,
+          color:
+            route.midpoint.lat > 60 || route.midpoint.lat < -60
+              ? 'white'
+              : 'white',
+          alt:
+            route.distances.km > 5000
+              ? 0.2
+              : route.distances.km > 3000
+              ? 0.03
+              : 0,
         }
       )
 
@@ -247,6 +325,15 @@ export default function Routes() {
     }
   }, [route])
 
+  // pathsData={pathsData.length > 0 ? pathsData : undefined}
+  // pathPoints={'coords'}
+  // pathColor={(path: any) => path.properties.color}
+  // pathDashLength={0.1}
+  // pathStroke={1}
+  // pathDashGap={0.02}
+  // pathDashAnimateTime={10000}
+  // pathLabel={(path: any) => path.properties.label}
+
   return (
     <div>
       <div
@@ -264,15 +351,17 @@ export default function Routes() {
           globeImageUrl="earth-blue-marble.jpg"
           bumpImageUrl="earth-topology.png"
           backgroundColor="rgba(0, 0, 0, 0)"
-          showAtmosphere={false}
-          pathsData={pathsData.length > 0 ? pathsData : undefined}
-          pathPoints={'coords'}
-          pathColor={(path: any) => path.properties.color}
-          pathDashLength={0.1}
-          pathStroke={1}
-          pathDashGap={0.02}
-          pathDashAnimateTime={10000}
-          pathLabel={(path: any) => path.properties.label}
+          showAtmosphere={true}
+          atmosphereColor="orange"
+          atmosphereAltitude={0.05}
+          arcsData={arcsData}
+          arcColor={'color'}
+          arcDashLength={0.1}
+          arcStroke={1}
+          arcDashGap={0.02}
+          arcAltitude={'alt'}
+          arcLabel={'label'}
+          arcDashAnimateTime={10000}
           labelsData={labelsData.length > 0 ? labelsData : undefined}
           labelResolution={10}
           labelColor={'color'}
@@ -304,7 +393,8 @@ export default function Routes() {
               {airports.length !== 0 ? (
                 <Autocomplete
                   disablePortal
-                  blurOnSelect
+                  blurOnSelect={'touch'}
+                  autoSelect
                   id="departure-airport-autocomplete"
                   size={width > 1024 ? 'medium' : 'small'}
                   options={departureOptions} // Use the FILTERED options for departure
@@ -330,7 +420,7 @@ export default function Routes() {
               {airports.length !== 0 ? (
                 <Autocomplete
                   disablePortal
-                  blurOnSelect
+                  blurOnSelect={'touch'}
                   id="destination-airport-autocomplete"
                   size={width > 1024 ? 'medium' : 'small'}
                   options={destinationOptions} // Use the FILTERED options for destination
@@ -356,12 +446,17 @@ export default function Routes() {
               {airports.length !== 0 ? (
                 <Autocomplete
                   disablePortal
-                  blurOnSelect
+                  blurOnSelect={'touch'}
                   id="excluded-countries-autocomplete"
+                  multiple
+                  value={countriesToExclude}
+                  onChange={(event, newValue) => {
+                    setCountriesToExclude(newValue) // Update the state on selection
+                  }}
                   size={width > 1024 ? 'medium' : 'small'}
-                  options={destinationOptions} // Use the FILTERED options for destination
+                  options={countryOptions} // Use the FILTERED options for destination
                   isOptionEqualToValue={(option, value) =>
-                    option.iata === value.iata
+                    option.code === value.code
                   } // Helps determine if an option matches the current value
                   sx={{ width: 300 }}
                   renderInput={(params) => (
