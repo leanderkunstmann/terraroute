@@ -1,0 +1,14 @@
+{
+    "database": {
+        "local": true,
+        "host": "localhost",
+        "port": 5432,
+        "username": "postgres",
+        "password": "postgres",
+        "database": "terraroute-db"
+    },
+    "allowed_origins": [
+        "http://localhost:5173",
+        "http://192.168.0.178:5173"
+    ]
+}

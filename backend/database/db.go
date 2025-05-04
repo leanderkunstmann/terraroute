@@ -17,12 +17,12 @@ import (
 var db *bun.DB
 
 type Config struct {
-	LocalDB  bool   `mapstructure:"local_db"`
-	Username string `mapstructure:"db_username"`
-	Password string `mapstructure:"db_password"`
-	Host     string `mapstructure:"db_host"`
-	Port     string `mapstructure:"db_port"`
-	Name     string `mapstructure:"db_name"`
+	Username string `json:"username" mapstructure:"username"`
+	Password string `json:"password" mapstructure:"password"`
+	Host     string `json:"host" mapstructure:"host"`
+	Port     string `json:"port" mapstructure:"port"`
+	Name     string `json:"name" mapstructure:"name"`
+	LocalDB  bool   `json:"local" mapstructure:"local"`
 }
 
 func (cfg *Config) GetDSN() string {
