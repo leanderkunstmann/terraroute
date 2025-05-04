@@ -131,7 +131,7 @@ export default function Routes() {
     if (departureAirport && destinationAirport) {
       const getRoute = async () => {
         const res = await axios.post(
-          'http://192.168.0.178:8080/api/v1/distances',
+          'http://192.168.0.178:8080/api/v1/routes',
           {
             departure: departureAirport.iata,
             destination: destinationAirport.iata,
