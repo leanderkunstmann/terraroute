@@ -21,7 +21,7 @@ func NewDistanceHandler(svc *services.DistanceCalculator) *DistanceHandler {
 }
 
 func (dc *DistanceHandler) Register(r *mux.Router) {
-	r.HandleFunc(fmt.Sprintf("%s/distance", basePathV1), dc.CalculateDistance).
+	r.HandleFunc(fmt.Sprintf("%s/routes", basePathV1), dc.CalculateDistance).
 		Methods(http.MethodPost, http.MethodOptions).
 		Name("CalculateDistance")
 }

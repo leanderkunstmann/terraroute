@@ -78,7 +78,7 @@ func TestCalculateDistance(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			body, _ := json.Marshal(tt.requestBody)
-			req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/distances", bytes.NewBuffer(body))
+			req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/routes", bytes.NewBuffer(body))
 			rr := httptest.NewRecorder()
 			handler.CalculateDistance(rr, req)
 
