@@ -2,40 +2,44 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
-	"github.com/leanderkunstmann/terraroute/backend/models"
-	"github.com/uptrace/bun"
+	"github.com/gorilla/mux"
+	"github.com/leanderkunstmann/terraroute/backend/services"
 )
 
-func GetAirports(db *bun.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var airports []models.Airport
+var _ Handler = (*AirportHandler)(nil)
 
-		// Get query parameters
-		country := r.URL.Query().Get("country")
-		iata := r.URL.Query().Get("iata")
-		continent := r.URL.Query().Get("continent")
+type AirportHandler struct {
+	service *services.AirportService
+}
 
-		// Build the query with optional filters
-		query := db.NewSelect().Model(&airports)
-		if country != "" {
-			query.Where("country = ?", country)
-		}
-		if iata != "" {
-			query.Where("iata = ?", iata)
-		}
-		if continent != "" {
-			query.Where("continent = ?", continent)
-		}
+func NewAirportHandler(svc *services.AirportService) *AirportHandler {
+	return &AirportHandler{service: svc}
+}
 
-		// Execute the query
-		if err := query.Scan(r.Context()); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+func (ah *AirportHandler) Register(r *mux.Router) {
+	r.HandleFunc(fmt.Sprintf("%s/airports", basePathV1), ah.getAirports).
+		Methods(http.MethodGet, http.MethodOptions).
+		Name("GetAirports")
+}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(airports)
+func (ah *AirportHandler) getAirports(w http.ResponseWriter, r *http.Request) {
+	country := r.URL.Query().Get("country")
+	iata := r.URL.Query().Get("iata")
+	continent := r.URL.Query().Get("continent")
+
+	res, err := ah.service.ListAirports(r.Context(), iata, continent, country)
+	if err != nil {
+		newErrorResponse(w, err, http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(res); err != nil {
+		newErrorResponse(w, err, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

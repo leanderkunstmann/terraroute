@@ -8,13 +8,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/leanderkunstmann/terraroute/backend/database"
 	"github.com/leanderkunstmann/terraroute/backend/models"
+	"github.com/leanderkunstmann/terraroute/backend/services"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCalculateDistance(t *testing.T) {
 	ctx := context.Background()
-	db, err := InitDB(ctx, "true")
+	db, err := database.New(ctx, &database.Config{LocalDB: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +24,8 @@ func TestCalculateDistance(t *testing.T) {
 		db.Close()
 	}()
 
-	handler := NewDistanceCalculator(db)
+	svc := services.NewDistanceCalculator(db)
+	handler := NewDistanceHandler(svc)
 
 	tests := []struct {
 		name           string
@@ -35,7 +38,7 @@ func TestCalculateDistance(t *testing.T) {
 			requestBody:    models.DistanceRequest{Departure: "JFK", Destination: "LAX"},
 			expectedStatus: http.StatusOK,
 			expectedBody: models.DistanceData{
-				Route: models.DistanceRequest{
+				Route: &models.DistanceRequest{
 					Departure:   "JFK",
 					Destination: "LAX",
 					Borders:     []string{},
@@ -75,7 +78,7 @@ func TestCalculateDistance(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			body, _ := json.Marshal(tt.requestBody)
-			req, _ := http.NewRequest("POST", "/distances", bytes.NewBuffer(body))
+			req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/distances", bytes.NewBuffer(body))
 			rr := httptest.NewRecorder()
 			handler.CalculateDistance(rr, req)
 

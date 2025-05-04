@@ -2,38 +2,43 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
-	"github.com/leanderkunstmann/terraroute/backend/models"
-	"github.com/uptrace/bun"
+	"github.com/gorilla/mux"
+	"github.com/leanderkunstmann/terraroute/backend/services"
 )
 
-func GetAircraft(db *bun.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var aircrafts []models.Aircraft
+var _ Handler = (*AircraftHandler)(nil)
 
-		// Get query parameters
+type AircraftHandler struct {
+	service *services.AircraftService
+}
 
-		manufacturer := r.URL.Query().Get("manufacturer")
-		aircraftType := r.URL.Query().Get("aircraftType")
+func NewAircraftHandler(svc *services.AircraftService) *AircraftHandler {
+	return &AircraftHandler{service: svc}
+}
 
-		// Build the query with optional filters
+func (ah *AircraftHandler) Register(r *mux.Router) {
+	r.HandleFunc(fmt.Sprintf("%s/aircraft", basePathV1), ah.GetAircraft).
+		Methods(http.MethodGet, http.MethodOptions).
+		Name("GetAircraft")
+}
 
-		query := db.NewSelect().Model(&aircrafts)
-		if manufacturer != "" {
-			query.Where("manufacturer = ?", manufacturer)
-		}
-		if aircraftType != "" {
-			query.Where("type = ?", aircraftType)
-		}
+func (ah *AircraftHandler) GetAircraft(w http.ResponseWriter, r *http.Request) {
+	manufacturer := r.URL.Query().Get("manufacturer")
+	aircraftType := r.URL.Query().Get("aircraftType")
 
-		// Execute the query
-		if err := query.Scan(r.Context()); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(aircrafts)
+	res, err := ah.service.ListAircraft(r.Context(), manufacturer, aircraftType)
+	if err != nil {
+		newErrorResponse(w, err, http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err = json.NewEncoder(w).Encode(res); err != nil {
+		newErrorResponse(w, err, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

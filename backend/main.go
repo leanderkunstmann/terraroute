@@ -6,75 +6,83 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"github.com/leanderkunstmann/terraroute/backend/database"
 	"github.com/leanderkunstmann/terraroute/backend/handlers"
+	"github.com/leanderkunstmann/terraroute/backend/services"
 )
 
-func serveRoute(router *mux.Router, api_version string, path string, method string, f func(http.ResponseWriter, *http.Request)) *mux.Route {
-	router.HandleFunc("/api"+api_version+path, f).Methods("OPTIONS")
-	return router.HandleFunc("/api"+api_version+path, f).Methods(method)
+type Config struct {
+	Database   database.Config `mapstructure:"database"`
+	ListenAddr string          `mapstructure:"listen_addr"`
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*") // Adjust as needed
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Credentials", "true") // Often needed for cookies/auth headers
-
-		// Allow specific headers, or dynamically allow requested headers for preflight
-		allowedHeaders := "Content-Type, Authorization" // Start with commonly needed headers
-		if r.Method == "OPTIONS" {
-			// For preflight requests, echo back the requested headers if they exist
-			requestedHeaders := r.Header.Get("Access-Control-Request-Headers")
-			if requestedHeaders != "" {
-				allowedHeaders = requestedHeaders
-			}
-		}
-		w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Call the next handler in the chain
-		next.ServeHTTP(w, r)
-	})
+type svcs struct {
+	Aircraft *services.AircraftService
+	Airport  *services.AirportService
+	Distance *services.DistanceCalculator
 }
 
-// use viper for configuration
+const (
+	listenAddr        = ":8080"
+	readHeaderTimeout = 5 * time.Second
+)
+
 func main() {
+	ctx := context.Background()
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	isLocalDB := os.Getenv("LOCAL_DB")
+	// TODO: read config via viper from both .env and config file
+	// optionally use viper with cobra to also read from CLI args
+	cfg := Config{
+		ListenAddr: listenAddr,
+		Database: database.Config{
+			LocalDB:  strings.EqualFold(os.Getenv("LOCAL_DB"), "true"),
+			Username: os.Getenv("DB_USER"),
+			Password: os.Getenv("DB_PASSWORD"),
+			Host:     os.Getenv("DB_HOST"),
+			Port:     os.Getenv("DB_PORT"),
+			Name:     os.Getenv("DB_NAME"),
+		},
+	}
 
-	// Check if the application is running in test mode
-	ctx := context.Background()
-	db, err := handlers.InitDB(ctx, isLocalDB)
-
+	db, err := database.New(ctx, &cfg.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	distanceCalculator := handlers.NewDistanceCalculator(db)
+	s := svcs{
+		Aircraft: services.NewAircraftService(db),
+		Airport:  services.NewAirportService(db),
+		Distance: services.NewDistanceCalculator(db),
+	}
+	handlers := []handlers.Handler{
+		handlers.NewAircraftHandler(s.Aircraft),
+		handlers.NewAirportHandler(s.Airport),
+		handlers.NewDistanceHandler(s.Distance),
+	}
 
 	r := mux.NewRouter()
+	r.Use(mux.CORSMethodMiddleware(r))
+	for _, handler := range handlers {
+		handler.Register(r)
+	}
 
-	r.Use(corsMiddleware)
+	// Use a custom [http.Server] to set a read header timeout
+	// to prevent slowloris attacks.
+	srv := &http.Server{
+		Addr:              cfg.ListenAddr,
+		Handler:           r,
+		ReadHeaderTimeout: readHeaderTimeout,
+	}
 
-	//v1
-	serveRoute(r, "/v1", "/airports", "GET", handlers.GetAirports(db))
-	serveRoute(r, "/v1", "/distances", "POST", distanceCalculator.CalculateDistance)
-	serveRoute(r, "/v1", "/aircrafts", "GET", handlers.GetAircraft(db))
-
-	//serveRoute(r, "/v1", "/flights", "GET", handlers.GetFlights(db))
 	fmt.Println("Server listening on :8080")
 	fmt.Println("Available routes:")
 	r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
@@ -84,6 +92,7 @@ func main() {
 		}
 		return nil
 	})
-
-	log.Fatal(http.ListenAndServe(":8080", r))
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
 }
