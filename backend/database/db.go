@@ -74,6 +74,10 @@ func newLocalDB(ctx context.Context) (*bun.DB, error) {
 		{IATA: "LAX", Name: "Los Angeles International Airport", City: "Los Angeles", Country: "USA", Continent: "North America", Latitude: 33.9416, Longitude: -118.4085},
 		{IATA: "CDG", Name: "Charles de Gaulle Airport", City: "Paris", Country: "France", Continent: "Europe", Latitude: 49.0097, Longitude: 2.5479},
 		{IATA: "FRA", Name: "Frankfurt Airport", City: "Frankfurt", Country: "Germany", Continent: "Europe", Latitude: 50.0333, Longitude: 8.5706},
+		{IATA: "PVG", Name: "Shanghai Pudong International Airport", City: "Shanghai", Country: "China", Continent: "Asia", Latitude: 31.1434, Longitude: 121.805},
+		{IATA: "NGO", Name: "Chubu Centrair International Airport", City: "Nagoya", Country: "Japan", Continent: "Asia", Latitude: 34.8583, Longitude: 136.805},
+		{IATA: "AKL", Name: "Auckland Airport", City: "Auckland", Country: "New Zealand", Continent: "Oceania", Latitude: -37.0081, Longitude: 174.792},
+		{IATA: "ADD", Name: "Addis Ababa Bole International Airport", City: "Addis Ababa", Country: "Ethiopia", Continent: "Africa", Latitude: 8.97789, Longitude: 38.799301},
 	}
 	aircrafts := []models.Aircraft{
 		{Id: 1, Type: models.Commercial, Name: "Boeing 737", Manufacturer: "Boeing", Range: 3510},
