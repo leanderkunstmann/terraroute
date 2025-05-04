@@ -48,13 +48,13 @@ func TestCalculateDistance(t *testing.T) {
 					"miles": 2470,
 					"nm":    2145,
 				},
-				Path: []models.PointCoords{
+				Path: []models.Coordinate{
 					{Lat: 40.6413, Lng: -73.7781},
 					{Lat: 33.9416, Lng: -118.4085},
 				},
-				Midpoint: models.PointCoords{
-					Lat: 37.29145,
-					Lng: -96.0933,
+				Midpoint: models.Coordinate{
+					Lat: 39.46,
+					Lng: -97.14,
 				},
 			},
 		},

@@ -55,11 +55,11 @@ func (dc *DistanceCalculator) CalculateDistance(ctx context.Context, req *models
 	}
 
 	var distances map[string]float64
-	var path []models.PointCoords
+	var path []models.Coordinate
 
 	if len(req.Borders) != 0 {
-		var path []models.PointCoords
-		distances, path = dc.calculateAdjustedDistance(models.PointCoords{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, models.PointCoords{Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude}, req.Borders)
+		var path []models.Coordinate
+		distances, path = dc.calculateAdjustedDistance(models.Coordinate{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, models.Coordinate{Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude}, req.Borders)
 		return models.DistanceData{
 			Route:     req,
 			Distances: distances,
@@ -68,8 +68,10 @@ func (dc *DistanceCalculator) CalculateDistance(ctx context.Context, req *models
 		}, nil
 	}
 
-	distances = dc.calculateDirectDistance(models.PointCoords{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, models.PointCoords{Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude})
-	path = []models.PointCoords{{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, {Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude}}
+	var coords = []models.Coordinate{{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, {Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude}}
+	// var coords = []models.Coordinate{{Lat: departureAirport.Latitude, Lng: departureAirport.Longitude}, {Lat: 33.9416, Lng: -118.4085}, {Lat: destinationAirport.Latitude, Lng: destinationAirport.Longitude}}
+	distances = dc.calculateDirectDistance(coords)
+	path = coords
 	return models.DistanceData{
 		Route:     req,
 		Distances: distances,
@@ -78,7 +80,7 @@ func (dc *DistanceCalculator) CalculateDistance(ctx context.Context, req *models
 	}, nil
 }
 
-func (dc *DistanceCalculator) calculateAdjustedDistance(departure, destination models.PointCoords, borders []string) (map[string]float64, []models.PointCoords) {
+func (dc *DistanceCalculator) calculateAdjustedDistance(departure, destination models.Coordinate, borders []string) (map[string]float64, []models.Coordinate) {
 	// This should take into account the borders and calculate the optimal distance avoiding those borders
 
 	// For now, let's return the direct distance as a placeholder
@@ -90,7 +92,7 @@ func (dc *DistanceCalculator) calculateAdjustedDistance(departure, destination m
 	var distanceKm float64
 	var distanceMiles float64
 	var distanceNauticalMiles float64
-	var path []models.PointCoords
+	var path []models.Coordinate
 
 	return map[string]float64{
 		"km":    distanceKm,
@@ -99,43 +101,66 @@ func (dc *DistanceCalculator) calculateAdjustedDistance(departure, destination m
 	}, path
 }
 
-func (dc *DistanceCalculator) calculateDirectDistance(departure, destination models.PointCoords) map[string]float64 {
-	// Convert latitude and longitude to radians
-	lat1Rad := departure.Lat * math.Pi / 180
-	lon1Rad := departure.Lng * math.Pi / 180
-	lat2Rad := destination.Lat * math.Pi / 180
-	lon2Rad := destination.Lng * math.Pi / 180
+func (dc *DistanceCalculator) calculateDirectDistance(points []models.Coordinate) map[string]float64 {
 
-	// Haversine formula
-	dlat := lat2Rad - lat1Rad
-	dlon := lon2Rad - lon1Rad
-	a := math.Sin(dlat/2)*math.Sin(dlat/2) + math.Cos(lat1Rad)*math.Cos(lat2Rad)*math.Sin(dlon/2)*math.Sin(dlon/2)
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	var c float64 = 0
+
+	for i := range len(points) - 1 {
+
+		// Convert latitude and longitude to radians
+		lat1Rad := points[i].Lat * math.Pi / 180
+		lon1Rad := points[i].Lng * math.Pi / 180
+		lat2Rad := points[i+1].Lat * math.Pi / 180
+		lon2Rad := points[i+1].Lng * math.Pi / 180
+
+		// Haversine formula
+		dlat := lat2Rad - lat1Rad
+		dlon := lon2Rad - lon1Rad
+		a := math.Sin(dlat/2)*math.Sin(dlat/2) + math.Cos(lat1Rad)*math.Cos(lat2Rad)*math.Sin(dlon/2)*math.Sin(dlon/2)
+		c += 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	}
 
 	return dc.calculateDistanceValues(c)
 }
 
-func (dc *DistanceCalculator) calculateMidPoint(coords []models.PointCoords) models.PointCoords {
+func (dc *DistanceCalculator) calculateMidPoint(coords []models.Coordinate) models.Coordinate {
 	if len(coords) == 0 {
-		// Return a zero-value PointCoords if the slice is empty
-		return models.PointCoords{}
+		// Return a zero-value Coordinate if the slice is empty
+		return models.Coordinate{}
 	}
 
-	var totalLat float64
-	var totalLng float64
+	var x, y, z float64
 
-	// Sum up all latitudes and longitudes
+	// Convert geographical coordinates to 3D Cartesian coordinates (assuming a unit sphere)
 	for _, p := range coords {
-		totalLat += p.Lat
-		totalLng += p.Lng
+		// Convert degrees to radians
+		latRad := p.Lat * math.Pi / 180
+		lngRad := p.Lng * math.Pi / 180
+
+		// Calculate Cartesian coordinates
+		x += math.Cos(latRad) * math.Cos(lngRad)
+		y += math.Cos(latRad) * math.Sin(lngRad)
+		z += math.Sin(latRad)
 	}
 
-	// Calculate the average latitude and longitude
-	avgLat := totalLat / float64(len(coords))
-	avgLng := totalLng / float64(len(coords))
+	// Calculate the average Cartesian coordinates
+	numCoords := float64(len(coords))
+	avgX := x / numCoords
+	avgY := y / numCoords
+	avgZ := z / numCoords
 
-	// Return the calculated midpoint
-	return models.PointCoords{Lat: avgLat, Lng: avgLng}
+	// Convert average Cartesian coordinates back to geographical coordinates
+	// atan2(y, x) gives the angle in radians
+	lngRad := math.Atan2(avgY, avgX)
+	// atan2(z, sqrt(x^2 + y^2)) gives the elevation angle (latitude)
+	latRad := math.Atan2(avgZ, math.Sqrt(avgX*avgX+avgY*avgY))
+
+	// Convert radians back to degrees
+	avgLat := latRad * 180 / math.Pi
+	avgLng := lngRad * 180 / math.Pi
+
+	// Return the calculated midpoint (spherical centroid)
+	return models.Coordinate{Lat: avgLat, Lng: avgLng}
 }
 
 func (dc *DistanceCalculator) calculateDistanceValues(c float64) map[string]float64 {

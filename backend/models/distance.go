@@ -38,7 +38,7 @@ func (req *DistanceRequest) validate() error {
 	return err
 }
 
-type PointCoords struct {
+type Coordinate struct {
 	Lat float64 `json:"lat"`
 	Lng float64 `json:"lng"`
 }
@@ -46,6 +46,6 @@ type PointCoords struct {
 type DistanceData struct {
 	Route     *DistanceRequest   `json:"route"`
 	Distances map[string]float64 `json:"distances"`
-	Path      []PointCoords      `json:"path"`
-	Midpoint  PointCoords        `json:"midpoint"`
+	Path      []Coordinate       `json:"path"`
+	Midpoint  Coordinate         `json:"midpoint"`
 }

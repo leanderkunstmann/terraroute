@@ -78,27 +78,45 @@ func newLocalDB(ctx context.Context) (*bun.DB, error) {
 		{IATA: "NGO", Name: "Chubu Centrair International Airport", City: "Nagoya", Country: "Japan", Continent: "Asia", Latitude: 34.8583, Longitude: 136.805},
 		{IATA: "AKL", Name: "Auckland Airport", City: "Auckland", Country: "New Zealand", Continent: "Oceania", Latitude: -37.0081, Longitude: 174.792},
 		{IATA: "ADD", Name: "Addis Ababa Bole International Airport", City: "Addis Ababa", Country: "Ethiopia", Continent: "Africa", Latitude: 8.97789, Longitude: 38.799301},
+		{IATA: "CPT", Name: "Cape Town International Airport", City: "Cape Town", Country: "South Africa", Continent: "Africa", Latitude: -33.965, Longitude: 18.602},
+		{IATA: "SCL", Name: "Arturo Merino Benítez International Airport", City: "Santiago de Chile", Country: "Chile", Continent: "South America", Latitude: -33.393056, Longitude: -70.785833},
+		{IATA: "USH", Name: "Ushuaia Malvinas Argentinas International Airport", City: "Ushuaia", Country: "Argentina", Continent: "South America", Latitude: -54.8433, Longitude: -68.2944},
+		{IATA: "GUA", Name: "La Aurora International Airport", City: "Guatemala City", Country: "Guatemala", Continent: "North America", Latitude: 14.5817, Longitude: -90.5267},
+		{IATA: "ANC", Name: "Ted Stevens Anchorage International Airport", City: "Anchorage", Country: "USA", Continent: "North America", Latitude: 61.1744444, Longitude: -149.99639},
+		{IATA: "MNL", Name: "Ninoy Aquino International Airport", City: "Manila", Country: "Philippines", Continent: "Asia", Latitude: 14.5086, Longitude: 121.0199966},
+		{IATA: "CTS", Name: "New Chitose Airport", City: "Sapporo", Country: "Japan", Continent: "Asia", Latitude: 42.7753, Longitude: 141.692},
+		{IATA: "PER", Name: "Perth Airport", City: "Perth", Country: "Australia", Continent: "Oceania", Latitude: -31.9403, Longitude: 115.967},
+		{IATA: "LAG", Name: "Laughtale Grandline International Airport", City: "One Piece", Country: "Bermuda", Continent: "North America", Latitude: 25.0, Longitude: -71.0}, // Fictional airport
 	}
+
 	aircrafts := []models.Aircraft{
 		{Id: 1, Type: models.Commercial, Name: "Boeing 737", Manufacturer: "Boeing", Range: 3510},
 		{Id: 2, Type: models.Heavy, Name: "Gulfstream G650", Manufacturer: "Gulfstream", Range: 7500},
 		{Id: 3, Type: models.Cargo, Name: "Antonov An-225", Manufacturer: "Antonov", Range: 9700},
 		{Id: 4, Type: models.Commercial, Name: "Airbus A320", Manufacturer: "Airbus", Range: 3200},
 	}
+
+	countries := []models.Country{
+		{Code: "us", Name: "United States of America", Continent: "North America"},
+		{Code: "ger", Name: "Germany", Continent: "Europe"},
+		{Code: "ru", Name: "Russia", Continent: "Europe"},
+		{Code: "cn", Name: "China", Continent: "Asia"},
+	}
+
 	flights := []models.Flight{
 		{FlightNumber: "AA100", AircraftId: 1, Origin: "JFK", Destination: "LAX", DepartureTime: "2023-10-01T08:00:00Z", ArrivalTime: "2023-10-01T11:00:00Z"},
 		{FlightNumber: "AF200", AircraftId: 2, Origin: "CDG", Destination: "JFK", DepartureTime: "2023-10-02T09:00:00Z", ArrivalTime: "2023-10-02T12:00:00Z"},
 		{FlightNumber: "DL300", AircraftId: 3, Origin: "LAX", Destination: "CDG", DepartureTime: "2023-10-03T10:00:00Z", ArrivalTime: "2023-10-03T18:00:00Z"},
 	}
 
-	if err = initLocalDB(ctx, airports, aircrafts, flights); err != nil {
+	if err = initLocalDB(ctx, airports, aircrafts, countries, flights); err != nil {
 		return nil, fmt.Errorf("creating database: %w", err)
 	}
 
 	return db, nil
 }
 
-func initLocalDB(ctx context.Context, airports []models.Airport, aircrafts []models.Aircraft, flights []models.Flight) error {
+func initLocalDB(ctx context.Context, airports []models.Airport, aircrafts []models.Aircraft, countries []models.Country, flights []models.Flight) error {
 	_, err := db.NewCreateTable().Model((*models.Airport)(nil)).Exec(ctx)
 	if err != nil {
 		return err
@@ -107,6 +125,12 @@ func initLocalDB(ctx context.Context, airports []models.Airport, aircrafts []mod
 	if err != nil {
 		return err
 	}
+
+	_, err = db.NewCreateTable().Model((*models.Country)(nil)).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
 	_, err = db.NewCreateTable().Model((*models.Flight)(nil)).Exec(ctx)
 	if err != nil {
 		return err
@@ -120,6 +144,12 @@ func initLocalDB(ctx context.Context, airports []models.Airport, aircrafts []mod
 	if err != nil {
 		return err
 	}
+
+	_, err = db.NewInsert().Model(&countries).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
 	_, err = db.NewInsert().Model(&flights).Exec(ctx)
 	if err != nil {
 		return err

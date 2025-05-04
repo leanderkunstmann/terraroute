@@ -27,6 +27,7 @@ type svcs struct {
 	Aircraft *services.AircraftService
 	Airport  *services.AirportService
 	Distance *services.DistanceCalculator
+	Country  *services.CountryService
 }
 
 const (
@@ -76,11 +77,13 @@ func main() {
 		Aircraft: services.NewAircraftService(db),
 		Airport:  services.NewAirportService(db),
 		Distance: services.NewDistanceCalculator(db),
+		Country:  services.NewCountryService(db),
 	}
 	handlers := []handlers.Handler{
 		handlers.NewAircraftHandler(s.Aircraft),
 		handlers.NewAirportHandler(s.Airport),
 		handlers.NewDistanceHandler(s.Distance),
+		handlers.NewCountryHandler(s.Country),
 	}
 
 	r := mux.NewRouter()
