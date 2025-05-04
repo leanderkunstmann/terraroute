@@ -89,15 +89,13 @@ func main() {
 		handler.Register(r)
 	}
 
-	// Configure CORS
 	corsOptions := cors.New(cors.Options{
-		AllowedOrigins: cfg.AllowedCors,                           // Replace with your allowed origin
-		AllowedMethods: []string{"GET", "POST", "OPTIONS"},        // Add methods you need
-		AllowedHeaders: []string{"Content-Type", "Authorization"}, // Add headers you need
-		// AllowCredentials: true, // Set to true if you need to handle credentials (cookies, auth headers)
+		AllowedOrigins: cfg.AllowedCors,
+		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders: []string{"Content-Type", "Authorization"},
+		// AllowCredentials: true,
 	})
 
-	// Wrap your router with the CORS handler
 	handler := corsOptions.Handler(r)
 
 	// Use a custom [http.Server] to set a read header timeout
