@@ -3,8 +3,10 @@ package services
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/leanderkunstmann/terraroute/backend/models"
 	"github.com/uptrace/bun"
@@ -40,38 +42,44 @@ func (as *CountryService) ListCountries(ctx context.Context, continent string) (
 	return countries, nil
 }
 
-func (as *CountryService) ListCountry(ctx context.Context, code string) (models.FullCountry, error) {
-	var country models.Country
-	query := as.db.NewSelect().Model(&country)
+func (as *CountryService) ListCountry(ctx context.Context, code string) (models.CountryBorders, error) {
 
-	//placeholder borders
-	borders := [][]models.Coordinate{
-		{
-			{Lat: 49.0, Lng: -114.0},
-			{Lat: 49.0, Lng: -80.0},
-			{Lat: 83.0, Lng: -80.0},
-			{Lat: 83.0, Lng: -141.0},
-			{Lat: 49.0, Lng: -141.0},
-		},
-		{
-			{Lat: 46.0, Lng: -55.0},
-			{Lat: 51.0, Lng: -55.0},
-			{Lat: 51.0, Lng: -60.0},
-			{Lat: 46.0, Lng: -60.0},
-			{Lat: 46.0, Lng: -55.0},
-		},
+	var countryBorders models.CountryBorders
+	var countryBordersLocal models.CountryBordersLocal
+
+	var query *bun.SelectQuery
+
+	if as.db.Dialect().Name().String() == "sqlite" {
+		query = as.db.NewSelect().Model(&countryBordersLocal)
+	} else {
+		query = as.db.NewSelect().Model(&countryBorders)
 	}
 
 	if code != "" {
+		code = strings.ToUpper(code)
 		query.Where("code = ?", code)
 	}
 
 	if err := query.Scan(ctx); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return models.FullCountry{}, ErrCountryNotFound
+			return models.CountryBorders{}, ErrCountryNotFound
 		}
-		return models.FullCountry{}, fmt.Errorf("failed to list countries: %w", err)
+		return models.CountryBorders{}, fmt.Errorf("failed to list countries: %w", err)
 	}
 
-	return models.FullCountry{Country: country, Borders: borders}, nil
+	if as.db.Dialect().Name().String() == "sqlite" {
+
+		// Create a variable of the struct type to hold the unmarshaled data
+		var localBorders models.GeoJson
+
+		err := json.Unmarshal([]byte(countryBordersLocal.Borders), &localBorders)
+		if err != nil {
+			// Handle the error if unmarshaling fails (e.g., invalid JSON, type mismatch)
+			fmt.Println("Error unmarshaling JSON to struct:", err)
+			return models.CountryBorders{}, fmt.Errorf("failed to list countries: %w", err)
+		}
+
+		return models.CountryBorders{Code: countryBordersLocal.Code, Borders: localBorders}, nil
+	}
+	return models.CountryBorders{Code: countryBorders.Code, Borders: countryBorders.Borders}, nil
 }

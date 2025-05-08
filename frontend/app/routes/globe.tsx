@@ -13,16 +13,27 @@ import type {
   Country,
   DistanceData,
   GeoLabel,
-  GeoPath,
+  GeoJson,
   GeoArc,
+  CountryBorders,
+  GeoJsonFeature,
 } from '~/types'
 import { colors } from '~/constants'
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export function meta({}: Route.MetaArgs) {
   return [
     { title: 'Globe View' },
     { name: 'description', content: 'Get your optimal flight routes' },
   ]
+}
+
+let initExcludedCountriesData: GeoJson = {
+  type: 'FeatureCollection',
+  features: [],
 }
 
 export default function Routes() {
@@ -42,8 +53,55 @@ export default function Routes() {
 
   const [countriesToExclude, setCountriesToExclude] = useState<Country[]>([])
 
+  const [countriesToExcludeData, setCountriesToExcludeData] = useState<
+    GeoJsonFeature[]
+  >([])
+
+  useMemo(async () => {
+    const getCountryBorder = async (code: string) => {
+      const res = await axios.get(
+        'http://192.168.0.178:8080/api/v1/countries/' + code
+      )
+
+      return await res.data
+    }
+
+    let loadedCountries: string[] = []
+
+    for (let c of countriesToExcludeData) {
+      if (c.properties.code in loadedCountries === false) {
+        loadedCountries.push(c.properties.code)
+      }
+    }
+
+    let features: GeoJsonFeature[] = []
+
+    let chosenCountries: string[] = []
+
+    for (let e of countriesToExclude) {
+      chosenCountries.push(e.code)
+      if (e.code in loadedCountries === false) {
+        let res = await getCountryBorder(e.code)
+
+        for (let i = 0; i < res.borders.features.length; i++) {
+          Object.defineProperty(res.borders.features[i].properties, 'code', {
+            value: e.code,
+          })
+        }
+        features.push(...res.borders.features)
+      }
+    }
+
+    const filteredCountries = countriesToExcludeData.filter((country) => {
+      return country.properties.code in chosenCountries
+    })
+
+    features.concat(...filteredCountries)
+
+    setCountriesToExcludeData(features)
+  }, [countriesToExclude])
+
   // State to hold data for the paths (lines) drawn on the globe
-  const [pathsData, setPathsData] = useState<GeoPath[]>([])
   const [arcsData, setArcsData] = useState<GeoArc[]>([])
   // State to hold data for the labels displayed on the globe
   const [labelsData, setLabelsData] = useState<GeoLabel[]>([])
@@ -114,7 +172,7 @@ export default function Routes() {
     }))
   }, [airports]) // Re-run if the original airports list changes
 
-  // Filter options for Departure: exclude the selected Destination airport
+  // Filter options for Departure: exclude the selecountriesToExcludeData Destination airport
   const departureOptions = useMemo(() => {
     if (!destinationAirport) {
       return baseAirportOptions.sort((a, b) => (a.iata < b.iata ? -1 : 1))
@@ -134,21 +192,7 @@ export default function Routes() {
   }, [baseAirportOptions, departureAirport])
 
   useMemo(async () => {
-    if (departureAirport && destinationAirport) {
-      // const getRoute = async () => {
-      //   const res = await axios.post(
-      //     'http://192.168.0.178:8080/api/v1/distances',
-      //     {
-      //       departure: departureAirport.iata,
-      //       destination: destinationAirport.iata,
-      //       borders: [],
-      //     }
-      //   )
-      //   setRoute(await res.data)
-      // }
-      // await getRoute()
-    } else {
-      setPathsData([])
+    if (!departureAirport || !destinationAirport) {
       setLabelsData([])
     }
   }, [departureAirport, destinationAirport])
@@ -179,7 +223,6 @@ export default function Routes() {
       departureAirport &&
       destinationAirport
     ) {
-      const paths = []
       const pathPoints = []
       const arcs: GeoArc[] = []
 
@@ -217,16 +260,6 @@ export default function Routes() {
 
       setArcsData(arcs)
       console.log(arcsData)
-
-      paths.push({
-        coords: pathPoints,
-        properties: {
-          label: textLabel,
-          color: colors[Math.floor(Math.random() * colors.length)],
-        },
-      })
-
-      setPathsData(paths)
 
       const labels: GeoLabel[] = []
 
@@ -328,19 +361,9 @@ export default function Routes() {
       })
     } else {
       // If distanceData is not valid, clear the paths and labels from the globe
-      setPathsData([])
       setLabelsData([])
     }
   }, [route])
-
-  // pathsData={pathsData.length > 0 ? pathsData : undefined}
-  // pathPoints={'coords'}
-  // pathColor={(path: any) => path.properties.color}
-  // pathDashLength={0.1}
-  // pathStroke={1}
-  // pathDashGap={0.02}
-  // pathDashAnimateTime={10000}
-  // pathLabel={(path: any) => path.properties.label}
 
   return (
     <div>
@@ -362,6 +385,11 @@ export default function Routes() {
           showAtmosphere={true}
           atmosphereColor="orange"
           atmosphereAltitude={0.05}
+          hexPolygonsData={countriesToExcludeData}
+          hexPolygonResolution={4}
+          hexPolygonMargin={0.5}
+          hexPolygonUseDots={true}
+          hexPolygonColor={() => 'rgba(226, 0, 0, 1)'}
           arcsData={arcsData}
           arcColor={'color'}
           arcDashLength={0.1}
@@ -407,7 +435,7 @@ export default function Routes() {
                   size={width > 1024 ? 'medium' : 'small'}
                   options={departureOptions} // Use the FILTERED options for departure
                   value={departureAirport} // Control the value
-                  onChange={(event, newValue) => {
+                  onChange={(_, newValue) => {
                     setDepartureAirport(newValue) // Update the state on selection
                   }}
                   isOptionEqualToValue={(option, value) =>
@@ -433,7 +461,7 @@ export default function Routes() {
                   size={width > 1024 ? 'medium' : 'small'}
                   options={destinationOptions} // Use the FILTERED options for destination
                   value={destinationAirport} // Control the value
-                  onChange={(event, newValue) => {
+                  onChange={(_, newValue) => {
                     setDestinationAirport(newValue) // Update the state on selection
                   }}
                   isOptionEqualToValue={(option, value) =>
@@ -458,7 +486,7 @@ export default function Routes() {
                   id="excluded-countries-autocomplete"
                   multiple
                   value={countriesToExclude}
-                  onChange={(event, newValue) => {
+                  onChange={(_, newValue) => {
                     setCountriesToExclude(newValue) // Update the state on selection
                   }}
                   size={width > 1024 ? 'medium' : 'small'}

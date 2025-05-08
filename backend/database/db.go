@@ -3,7 +3,11 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"os"
 
 	"github.com/leanderkunstmann/terraroute/backend/models"
 	_ "github.com/mattn/go-sqlite3"
@@ -97,10 +101,50 @@ func newLocalDB(ctx context.Context) (*bun.DB, error) {
 	}
 
 	countries := []models.Country{
-		{Code: "us", Name: "United States of America", Continent: "North America"},
-		{Code: "ger", Name: "Germany", Continent: "Europe"},
-		{Code: "ru", Name: "Russia", Continent: "Europe"},
-		{Code: "cn", Name: "China", Continent: "Asia"},
+		{Code: "NE", Name: "Netherlands", Continent: "Europe"},
+		{Code: "DE", Name: "Germany", Continent: "Europe"},
+		{Code: "RU", Name: "Russia", Continent: "Europe"},
+	}
+
+	var germany *os.File
+	var netherlands *os.File
+	var russia *os.File
+
+	basepath := "../"
+
+	germany, _ = os.Open(basepath + "geodata/germany.json")
+	netherlands, _ = os.Open(basepath + "geodata/netherlands.json")
+	russia, err = os.Open(basepath + "geodata/russia.json")
+	if err != nil {
+		basepath = ""
+		germany, _ = os.Open(basepath + "geodata/germany.json")
+		netherlands, _ = os.Open(basepath + "geodata/netherlands.json")
+		russia, err = os.Open(basepath + "geodata/russia.json")
+
+		if err != nil {
+			log.Fatal("no input")
+		}
+	}
+
+	var germanyGeoData models.GeoJson
+	germanyByteValue, _ := io.ReadAll(germany)
+	json.Unmarshal(germanyByteValue, &germanyGeoData)
+	germanyBordersString, _ := json.Marshal(germanyGeoData)
+
+	var netherlandsGeoData models.GeoJson
+	netherlandsByteValue, _ := io.ReadAll(netherlands)
+	json.Unmarshal(netherlandsByteValue, &netherlandsGeoData)
+	netherlandsBordersString, _ := json.Marshal(netherlandsGeoData)
+
+	var russiaGeoData models.GeoJson
+	russiaByteValue, _ := io.ReadAll(russia)
+	json.Unmarshal(russiaByteValue, &russiaGeoData)
+	russiaBordersString, _ := json.Marshal(russiaGeoData)
+
+	countryBordersLocal := []models.CountryBordersLocal{
+		{Code: "DE", Borders: string(germanyBordersString)},
+		{Code: "NE", Borders: string(netherlandsBordersString)},
+		{Code: "RU", Borders: string(russiaBordersString)},
 	}
 
 	flights := []models.Flight{
@@ -109,14 +153,14 @@ func newLocalDB(ctx context.Context) (*bun.DB, error) {
 		{FlightNumber: "DL300", AircraftId: 3, Origin: "LAX", Destination: "CDG", DepartureTime: "2023-10-03T10:00:00Z", ArrivalTime: "2023-10-03T18:00:00Z"},
 	}
 
-	if err = initLocalDB(ctx, airports, aircrafts, countries, flights); err != nil {
+	if err = initLocalDB(ctx, airports, aircrafts, countries, countryBordersLocal, flights); err != nil {
 		return nil, fmt.Errorf("creating database: %w", err)
 	}
 
 	return db, nil
 }
 
-func initLocalDB(ctx context.Context, airports []models.Airport, aircrafts []models.Aircraft, countries []models.Country, flights []models.Flight) error {
+func initLocalDB(ctx context.Context, airports []models.Airport, aircrafts []models.Aircraft, countries []models.Country, countryBordersLocal []models.CountryBordersLocal, flights []models.Flight) error {
 	_, err := db.NewCreateTable().Model((*models.Airport)(nil)).Exec(ctx)
 	if err != nil {
 		return err
@@ -127,6 +171,11 @@ func initLocalDB(ctx context.Context, airports []models.Airport, aircrafts []mod
 	}
 
 	_, err = db.NewCreateTable().Model((*models.Country)(nil)).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.NewCreateTable().Model((*models.CountryBordersLocal)(nil)).Exec(ctx)
 	if err != nil {
 		return err
 	}
@@ -146,6 +195,11 @@ func initLocalDB(ctx context.Context, airports []models.Airport, aircrafts []mod
 	}
 
 	_, err = db.NewInsert().Model(&countries).Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.NewInsert().Model(&countryBordersLocal).Exec(ctx)
 	if err != nil {
 		return err
 	}

@@ -27,7 +27,27 @@ export interface Country {
   code: string
   name: string
   continent: string
-  borders?: Coordinate[][]
+}
+
+export interface CountryBorders {
+  code: string
+  borders: GeoJson
+}
+
+interface GeoJsonGeometry {
+  type: string
+  coordinates: number[][][]
+}
+
+export interface GeoJsonFeature {
+  type: string
+  geometry: GeoJsonGeometry
+  properties: any
+}
+
+export interface GeoJson {
+  type: string
+  features: GeoJsonFeature[]
 }
 
 // Represents the data returned after calculating distances and routes.

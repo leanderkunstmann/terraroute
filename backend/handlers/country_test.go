@@ -62,15 +62,14 @@ func TestGetCountries(t *testing.T) {
 
 	// Test case 1: No filters
 
-	var country models.FullCountry
+	var country models.CountryBorders
 
 	// needed for handling of path variables, TODO: implement like that in all test files
 	router := mux.NewRouter()
 	router.HandleFunc("/countries/{code}", handler.getCountry).Methods("GET")
 
-	newPath := "/countries/cn"
+	newPath := "/countries/de"
 	req, _ = http.NewRequestWithContext(ctx, http.MethodGet, newPath, http.NoBody)
-	fmt.Print(req)
 	rr = httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -78,7 +77,7 @@ func TestGetCountries(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	json.Unmarshal(rr.Body.Bytes(), &country)
-	assert.Equal(t, "China", country.Name) // Check if all countries are returned
+	assert.Equal(t, "DE", country.Code) // Check if all countries are returned
 
 	newPath = "/countries/test"
 	// Test case 2: Filter by continent

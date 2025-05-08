@@ -3,3 +3,5 @@ terraroute.db
 .env
 playground.go
 *.exe
+
+geodata
